@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 480" role="img" aria-label="Qost - From Stock to Profit">
+<style>
+.Dw{stroke-dasharray:1 1;stroke-dashoffset:1;animation:Dd 8s cubic-bezier(.65,0,.35,1) infinite}
+.Da{opacity:0;animation:Df 8s ease-in-out infinite}
+@keyframes Dd{0%{stroke-dashoffset:1}14%,74%{stroke-dashoffset:0}90%,100%{stroke-dashoffset:-1}}
+@keyframes Df{0%,8%{opacity:0}16%,74%{opacity:1}84%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.Dw{animation:none;stroke-dashoffset:0}.Da{animation:none;opacity:1}}
+.Dtgf{font-family:'Bebas Neue','Oswald','Arial Narrow',Impact,sans-serif;font-size:36px}
+.Dl{opacity:0;animation:Dr 8s cubic-bezier(.22,1,.36,1) infinite}
+@keyframes Dr{0%{opacity:0;transform:translateY(28px);filter:blur(6px);fill:#F27A1A}10%{opacity:1;transform:translateY(0);filter:blur(0);fill:#F27A1A}18%,72%{opacity:1;transform:translateY(0);filter:blur(0);fill:#FAF6F0}86%,100%{opacity:0;transform:translateY(-28px);filter:blur(6px);fill:#FAF6F0}}
+@media (prefers-reduced-motion:reduce){.Dl{animation:none;opacity:1}}
+</style>
+<rect width="820" height="480" fill="#2B2D31"/>
+<circle class="Dw" style="animation-delay:0s" pathLength="1" cx="300" cy="270" r="68" transform="rotate(-90 300 270)" stroke="#FAF6F0" stroke-width="10" fill="none"/>
+<g class="Da" style="animation-delay:0.4s"><circle cx="300" cy="270" r="47" stroke="#F27A1A" stroke-width="4" stroke-dasharray="3 9" stroke-linecap="round" fill="none"/><circle cx="300" cy="270" r="9" fill="#F27A1A"/></g>
+<path class="Dw" style="animation-delay:0.5s" pathLength="1" d="M318 296Q338 344 396 330" stroke="#F27A1A" stroke-width="10" fill="none" />
+<circle class="Dw" style="animation-delay:1.0s" pathLength="1" cx="440" cy="308" r="29" transform="rotate(-90 440 308)" stroke="#FAF6F0" stroke-width="10" fill="none"/>
+<g class="Da" style="animation-delay:1.4s"><circle cx="440" cy="308" r="8" fill="#F27A1A"/></g>
+<path class="Dw" style="animation-delay:1.5s" pathLength="1" d="M534 290C534 282 527 279 519 279C508 279 503 285 503 292C503 300 510 303 519 308C529 312 535 316 535 324C535 332 529 337 519 337C509 337 503 333 502 326" stroke="#FAF6F0" stroke-width="10" fill="none" />
+<path class="Dw" style="animation-delay:2.0s" pathLength="1" d="M572 252V320Q572 337 590 337" stroke="#FAF6F0" stroke-width="10" fill="none" />
+<path class="Dw" style="animation-delay:2.3s" pathLength="1" d="M558 279H590" stroke="#FAF6F0" stroke-width="10" fill="none" />
+<g class="Dtgf" fill="#FAF6F0"><text class="Dl" style="animation-delay:1.80s" x="182" y="430" text-anchor="middle">F</text><text class="Dl" style="animation-delay:1.87s" x="206" y="430" text-anchor="middle">R</text><text class="Dl" style="animation-delay:1.94s" x="230" y="430" text-anchor="middle">O</text><text class="Dl" style="animation-delay:2.01s" x="254" y="430" text-anchor="middle">M</text><text class="Dl" style="animation-delay:2.15s" x="302" y="430" text-anchor="middle">S</text><text class="Dl" style="animation-delay:2.22s" x="326" y="430" text-anchor="middle">T</text><text class="Dl" style="animation-delay:2.29s" x="350" y="430" text-anchor="middle">O</text><text class="Dl" style="animation-delay:2.36s" x="374" y="430" text-anchor="middle">C</text><text class="Dl" style="animation-delay:2.43s" x="398" y="430" text-anchor="middle">K</text><text class="Dl" style="animation-delay:2.57s" x="446" y="430" text-anchor="middle">T</text><text class="Dl" style="animation-delay:2.64s" x="470" y="430" text-anchor="middle">O</text><text class="Dl" style="animation-delay:2.78s" x="518" y="430" text-anchor="middle">P</text><text class="Dl" style="animation-delay:2.85s" x="542" y="430" text-anchor="middle">R</text><text class="Dl" style="animation-delay:2.92s" x="566" y="430" text-anchor="middle">O</text><text class="Dl" style="animation-delay:2.99s" x="590" y="430" text-anchor="middle">F</text><text class="Dl" style="animation-delay:3.06s" x="614" y="430" text-anchor="middle">I</text><text class="Dl" style="animation-delay:3.13s" x="638" y="430" text-anchor="middle">T</text></g>
+</svg>
