@@ -39,16 +39,16 @@ export default function IssuesPage() {
       const codes = [...new Set(rows.map((r) => r.code))];
       const known = new Map<number, string>();
       for (const part of chunk(codes, 200)) {
-        const { data, error: e } = await supabase.from("items").select("id,code").in("code", part);
+        const { data, error: e } = await supabase.from("item_aliases").select("id,system_code").in("system_code", part);
         if (e) throw new Error(e.message);
-        data?.forEach((d) => known.set(d.code, d.id));
+        data?.forEach((d) => known.set(d.system_code, d.id));
       }
       const refs = [...new Set(rows.map((r) => `REQ-${r.req}`))];
       const active = new Set<string>();
       for (const part of chunk(refs, 200)) {
-        const { data, error: e } = await supabase.from("active_issues").select("item_id,ref_no").in("ref_no", part);
+        const { data, error: e } = await supabase.from("active_issues").select("alias_id,ref_no").in("ref_no", part);
         if (e) throw new Error(e.message);
-        data?.forEach((d) => active.add(`${d.ref_no}|${d.item_id}`));
+        data?.forEach((d) => active.add(`${d.ref_no}|${d.alias_id}`));
       }
       const byReq = new Map<number, { req: number; lines: number; total: number }>();
       for (const r of rows) {
@@ -76,7 +76,7 @@ export default function IssuesPage() {
     });
     setBusy(false);
     if (e) return setError(e.message);
-    setMessage(`Imported ${data.inserted} issues, skipped ${data.skipped}, replaced ${data.replaced}.`);
+    setMessage(`Imported ${data.inserted} issues, skipped ${data.skipped}, replaced ${data.replaced}. ${data.unmapped} waiting for item mapping.`);
     setPreview(null);
     setRefresh((n) => n + 1);
   }
@@ -110,7 +110,7 @@ export default function IssuesPage() {
             <h2 className="mb-2 font-semibold">Preview: {preview.file}</h2>
             <ul className="mb-3 text-sm">
               <li>{preview.rows.length} issue lines in {preview.reqs.length} requisitions, total {money(preview.total)}</li>
-              <li>{preview.newItems} new items will be created</li>
+              <li className={preview.newItems ? "font-medium text-orange-600" : ""}>{preview.newItems} system items are not mapped to an ingredient yet. Their lines wait on the Item mapping page.</li>
               <li className={preview.duplicates ? "font-medium text-orange-600" : ""}>{preview.duplicates} lines already imported (same requisition and item)</li>
               {preview.errors.length > 0 && <li className="text-red-600">{preview.errors.length} rows could not be read</li>}
             </ul>
@@ -166,7 +166,7 @@ function ManualEntry() {
   const [err, setErr] = useState("");
 
   useEffect(() => { loadItemsLite().then(setItems).catch((e) => setErr(e.message)); }, []);
-  const item = useMemo(() => items.find((i) => `${i.code} - ${i.name}` === itemText), [items, itemText]);
+  const item = useMemo(() => items.find((i) => i.name === itemText), [items, itemText]);
   const twoLeg = kind === "transfer" || kind === "issue";
 
   async function submit(e: React.FormEvent) {
@@ -179,14 +179,14 @@ function ManualEntry() {
       ? await supabase.rpc("transfer_stock", { p_item: item.id, p_from: from, p_to: to, p_date: date, p_qty: q, p_kind: kind, p_ref: ref || null, p_note: note || null })
       : await supabase.rpc("record_stock_out", { p_item: item.id, p_location: from, p_date: date, p_qty: q, p_kind: kind, p_ref: ref || null, p_note: note || null });
     if (error) return setErr(error.message);
-    setMsg(`Recorded ${q} ${item.purchase_unit ?? ""} of ${item.name}.`);
+    setMsg(`Recorded ${q} ${item.unit} of ${item.name}.`);
     setQty(""); setRef(""); setNote("");
   }
 
   return (
     <section>
       <h2 className="mb-1 text-xl font-semibold">Manual entry</h2>
-      <p className="mb-3 text-sm opacity-70">Transfers between kitchens or branches, direct issues, spoilage, staff meals, complimentaries and conference issues. Quantities are in the item&apos;s reported unit.</p>
+      <p className="mb-3 text-sm opacity-70">Transfers between kitchens or branches, direct issues, spoilage, staff meals, complimentaries and conference issues. Quantities are in the ingredient&apos;s unit (g, ml, pcs...).</p>
       <form onSubmit={submit} className="grid max-w-2xl gap-3 sm:grid-cols-2">
         <label className="text-sm">Type
           <select value={kind} onChange={(e) => setKind(e.target.value)} className={`${sel} mt-1 w-full`}>
@@ -202,8 +202,8 @@ function ManualEntry() {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${sel} mt-1 w-full`} />
         </label>
         <label className="text-sm sm:col-span-2">Item
-          <input list="items-list" value={itemText} onChange={(e) => setItemText(e.target.value)} placeholder="Type a code or name" className={`${sel} mt-1 w-full`} />
-          <datalist id="items-list">{items.map((i) => <option key={i.id} value={`${i.code} - ${i.name}`} />)}</datalist>
+          <input list="items-list" value={itemText} onChange={(e) => setItemText(e.target.value)} placeholder="Type an ingredient name" className={`${sel} mt-1 w-full`} />
+          <datalist id="items-list">{items.map((i) => <option key={i.id} value={i.name} />)}</datalist>
         </label>
         <label className="text-sm">{twoLeg ? "From" : "Taken from"}
           <select value={from} onChange={(e) => setFrom(e.target.value)} className={`${sel} mt-1 w-full`}>
@@ -219,7 +219,7 @@ function ManualEntry() {
             </select>
           </label>
         )}
-        <label className="text-sm">Quantity {item?.purchase_unit && <span className="opacity-60">({item.purchase_unit})</span>}
+        <label className="text-sm">Quantity {item?.unit && <span className="opacity-60">({item.unit})</span>}
           <input value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" className={`${sel} mt-1 w-full`} />
         </label>
         <label className="text-sm">Reference

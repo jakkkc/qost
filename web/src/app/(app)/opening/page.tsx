@@ -31,9 +31,9 @@ export default function OpeningPage() {
       const codes = [...new Set(rows.map((r) => r.code))];
       const known = new Set<number>();
       for (const part of chunk(codes, 200)) {
-        const { data, error: e } = await supabase.from("items").select("code").in("code", part);
+        const { data, error: e } = await supabase.from("item_aliases").select("system_code").in("system_code", part);
         if (e) throw new Error(e.message);
-        data?.forEach((d) => known.add(d.code));
+        data?.forEach((d) => known.add(d.system_code));
       }
       setPreview({ file: file.name, rows, errors, newItems: codes.filter((c) => !known.has(c)).length });
     } catch (e) { setError((e as Error).message); }
@@ -45,7 +45,7 @@ export default function OpeningPage() {
     const { data, error: e } = await supabase.rpc("import_opening", { p_file: preview.file, p_location: location, p_date: date, p_rows: preview.rows });
     setBusy(false);
     if (e) return setError(e.message);
-    setMessage(`Opening stock set for ${data.inserted} items (${data.skipped} already had an opening balance and were skipped).`);
+    setMessage(`Opening stock set for ${data.inserted} items (${data.skipped} already had an opening balance and were skipped, ${data.unmapped} waiting for item mapping).`);
     setPreview(null);
     setRefresh((n) => n + 1);
   }
@@ -54,7 +54,7 @@ export default function OpeningPage() {
     <div>
       <h1 className="mb-1 text-2xl font-semibold">Opening stock</h1>
       <p className="mb-4 text-sm opacity-70">
-        Upload a stock-take sheet with the columns Item Code, Item Name, Units and Quantity. Quantities are in the item&apos;s reported unit.
+        Upload a stock-take sheet with the columns Item Code, Item Name, Units and Quantity. Quantities are in the system&apos;s unit for each item; they are converted through the item mapping.
         Each location needs one sheet, dated the day your tracking starts.
       </p>
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -75,7 +75,7 @@ export default function OpeningPage() {
           <h2 className="mb-2 font-semibold">Preview: {preview.file}</h2>
           <ul className="mb-3 text-sm">
             <li>{preview.rows.length} items with a counted quantity</li>
-            <li>{preview.newItems} new items will be created</li>
+            <li className={preview.newItems ? "font-medium text-orange-600" : ""}>{preview.newItems} system items are not mapped to an ingredient yet. Their lines wait on the Item mapping page.</li>
             {preview.errors.length > 0 && <li className="text-red-600">{preview.errors.length} rows could not be read</li>}
           </ul>
           {preview.errors.slice(0, 5).map((m) => <p key={m} className="text-xs text-red-600">{m}</p>)}

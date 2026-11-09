@@ -11,7 +11,7 @@ interface Preview {
   file: string; rows: PurchaseRow[]; errors: string[];
   newItems: number; duplicates: number; total: number;
 }
-interface Increase { purchase_date: string; unit_price: number; previous_price: number; increase_pct: number; items: { name: string } | null }
+interface Increase { purchase_date: string; unit_cost: number; previous_cost: number; increase_pct: number; item_id: string; name?: string }
 
 const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
@@ -31,9 +31,13 @@ export default function PurchasesPage() {
 
   const loadIncreases = useCallback(async () => {
     const { data } = await supabase.from("price_history")
-      .select("purchase_date,unit_price,previous_price,increase_pct,items(name)")
+      .select("purchase_date,unit_cost,previous_cost,increase_pct,item_id")
       .not("increase_pct", "is", null).order("purchase_date", { ascending: false }).limit(25);
-    setIncreases((data ?? []) as unknown as Increase[]);
+    const rows = (data ?? []) as Increase[];
+    const ids = [...new Set(rows.map((r) => r.item_id))];
+    const { data: its } = ids.length ? await supabase.from("items").select("id,name").in("id", ids) : { data: [] };
+    const names = new Map((its ?? []).map((i) => [i.id, i.name]));
+    setIncreases(rows.map((r) => ({ ...r, name: names.get(r.item_id) })));
   }, []);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load on mount and after imports
   useEffect(() => { loadIncreases(); }, [loadIncreases, refresh]);
@@ -46,16 +50,16 @@ export default function PurchasesPage() {
       const codes = [...new Set(rows.map((r) => r.code))];
       const known = new Map<number, string>();
       for (const part of chunk(codes, 200)) {
-        const { data, error: e } = await supabase.from("items").select("id,code").in("code", part);
+        const { data, error: e } = await supabase.from("item_aliases").select("id,system_code").in("system_code", part);
         if (e) throw new Error(e.message);
-        data?.forEach((d) => known.set(d.code, d.id));
+        data?.forEach((d) => known.set(d.system_code, d.id));
       }
       const grns = [...new Set(rows.map((r) => r.grn))];
       const existing = new Set<string>();
       for (const part of chunk(grns, 200)) {
-        const { data, error: e } = await supabase.from("grn_lines").select("grn_no,item_id").in("grn_no", part);
+        const { data, error: e } = await supabase.from("grn_lines").select("grn_no,alias_id").in("grn_no", part);
         if (e) throw new Error(e.message);
-        data?.forEach((d) => existing.add(`${d.grn_no}|${d.item_id}`));
+        data?.forEach((d) => existing.add(`${d.grn_no}|${d.alias_id}`));
       }
       const duplicates = rows.filter((r) => known.has(r.code) && existing.has(`${r.grn}|${known.get(r.code)}`)).length;
       setPreview({
@@ -74,7 +78,7 @@ export default function PurchasesPage() {
     });
     setBusy(false);
     if (e) return setError(e.message);
-    setMessage(`Imported ${data.inserted} lines, skipped ${data.skipped}, replaced ${data.replaced}.`);
+    setMessage(`Imported ${data.inserted} lines, skipped ${data.skipped}, replaced ${data.replaced}. ${data.unmapped} waiting for item mapping.`);
     setPreview(null);
     setRefresh((n) => n + 1);
   }
@@ -102,7 +106,7 @@ export default function PurchasesPage() {
           <h2 className="mb-2 font-semibold">Preview: {preview.file}</h2>
           <ul className="mb-3 text-sm">
             <li>{preview.rows.length} purchase lines, total {money(preview.total)} (VAT-inclusive)</li>
-            <li>{preview.newItems} new items will be created</li>
+            <li className={preview.newItems ? "font-medium text-orange-600" : ""}>{preview.newItems} system items are not mapped to an ingredient yet. Their lines wait on the Item mapping page.</li>
             <li className={preview.duplicates ? "font-medium text-orange-600" : ""}>{preview.duplicates} lines already imported (same GRN and item)</li>
             {preview.errors.length > 0 && <li className="text-red-600">{preview.errors.length} rows could not be read</li>}
           </ul>
@@ -135,11 +139,11 @@ export default function PurchasesPage() {
         <section className="mb-6">
           <h2 className="mb-2 text-lg font-semibold">Recent price increases</h2>
           <table className="w-full text-left text-sm">
-            <thead className="opacity-60"><tr><th>Date</th><th>Item</th><th>Was</th><th>Now</th><th>Change</th></tr></thead>
+            <thead className="opacity-60"><tr><th>Date</th><th>Item</th><th>Was (per unit)</th><th>Now (per unit)</th><th>Change</th></tr></thead>
             <tbody>
               {increases.map((x, i) => (
                 <tr key={i} className="border-t border-black/10 dark:border-white/10">
-                  <td>{x.purchase_date}</td><td>{x.items?.name}</td><td>{money(x.previous_price)}</td><td>{money(x.unit_price)}</td>
+                  <td>{x.purchase_date}</td><td>{x.name}</td><td>{money(x.previous_cost)}</td><td>{money(x.unit_cost)}</td>
                   <td className="font-medium text-red-600">+{x.increase_pct}%</td>
                 </tr>
               ))}
