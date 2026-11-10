@@ -12,6 +12,7 @@ interface Item { id: string; name: string; unit: string; unit_cost: number | nul
 interface Line { key: number; itemText: string; qty: string }
 interface Form { id: string | null; name: string; category: string; menuPrice: string; onMenu: boolean; targetPct: string; keyText: string; lines: Line[] }
 interface Settings { tax_factor: number; target_cost_max: number }
+interface Suggestion { recipe_id: string; dish: string; suggested_item_id: string; suggested_item: string; line_cost: number }
 
 const inp = "rounded border border-black/20 bg-transparent px-2 py-1 dark:border-white/20";
 const money = (n: number | null | undefined) => (n === null || n === undefined ? "-" : Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }));
@@ -31,6 +32,8 @@ export default function RecipesPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sugg, setSugg] = useState<Suggestion[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     try {
@@ -119,6 +122,26 @@ export default function RecipesPage() {
     setForm(null); load();
   }
 
+  async function loadSuggestions() {
+    setError(""); setMessage("");
+    const { data, error: e } = await supabase.from("key_ingredient_suggestions").select("recipe_id,dish,suggested_item_id,suggested_item,line_cost,current_key_item_id").is("current_key_item_id", null);
+    if (e) return setError(e.message);
+    const onMenu = new Set(rows.filter((r) => r.on_menu).map((r) => r.recipe_id));
+    const list = ((data ?? []) as Suggestion[]).filter((s) => onMenu.has(s.recipe_id)).sort((a, b) => a.dish.localeCompare(b.dish));
+    setSugg(list); setPicked(new Set(list.map((s) => s.recipe_id)));
+    if (!list.length) setMessage("No menu dishes need a key ingredient suggestion (or no ingredient costs exist yet).");
+  }
+
+  async function applySuggestions() {
+    if (!sugg) return;
+    setBusy(true); setError("");
+    for (const s of sugg.filter((x) => picked.has(x.recipe_id))) {
+      const { error: e } = await supabase.from("recipes").update({ key_item_id: s.suggested_item_id }).eq("id", s.recipe_id);
+      if (e) { setBusy(false); return setError(e.message); }
+    }
+    setBusy(false); setMessage(`Set key ingredients for ${picked.size} dishes.`); setSugg(null); load();
+  }
+
   const duplicate = () => setForm((f) => f && { ...f, id: null, name: `${f.name} (copy)`, lines: f.lines.map((l) => ({ ...l, key: keySeq++ })) });
 
   return (
@@ -137,6 +160,7 @@ export default function RecipesPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dishes" className={`${inp} flex-1`} />
             <button onClick={() => { setForm(blankForm()); setMessage(""); setError(""); }} className="rounded bg-orange-500 px-3 py-1 text-white">New</button>
           </div>
+          <button onClick={loadSuggestions} className="mb-2 text-sm underline">Suggest key ingredients</button>
           <label className="mb-2 flex items-center gap-1 text-sm"><input type="checkbox" checked={menuOnly} onChange={(e) => setMenuOnly(e.target.checked)} /> Menu dishes only (hide sauces and components)</label>
           <div className="mb-2 flex flex-wrap gap-2 text-xs">
             {FLAGS.map((f) => (
@@ -163,6 +187,25 @@ export default function RecipesPage() {
           </ul>
           {!rows.length && <p className="py-6 text-sm opacity-60">No recipes yet. Import the workbook on the Settings page, or click New.</p>}
         </section>
+
+        {sugg && sugg.length > 0 && (
+          <section className="rounded border border-black/10 p-4 dark:border-white/10">
+            <h2 className="mb-1 font-semibold">Suggested key ingredients</h2>
+            <p className="mb-3 text-sm opacity-70">The costliest ingredient per portion for each menu dish without one. Untick any you disagree with.</p>
+            <div className="mb-3 max-h-96 overflow-y-auto">
+              {sugg.map((s) => (
+                <label key={s.recipe_id} className="flex items-center gap-2 py-0.5 text-sm">
+                  <input type="checkbox" checked={picked.has(s.recipe_id)} onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(s.recipe_id)) n.delete(s.recipe_id); else n.add(s.recipe_id); return n; })} />
+                  <span className="flex-1">{s.dish}</span><span className="opacity-70">{s.suggested_item}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={applySuggestions} disabled={busy || !picked.size} className="rounded bg-orange-500 px-4 py-2 font-medium text-white disabled:opacity-50">Apply {picked.size}</button>
+              <button onClick={() => setSugg(null)} className="text-sm underline opacity-70">Cancel</button>
+            </div>
+          </section>
+        )}
 
         {form && calc && (
           <section className="min-w-0 rounded border border-black/10 p-4 dark:border-white/10">

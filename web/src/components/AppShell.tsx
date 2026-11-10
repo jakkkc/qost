@@ -11,6 +11,10 @@ const Ctx = createContext<AppCtx>({ locations: [], tenantId: "" });
 export const useApp = () => useContext(Ctx);
 
 const NAV = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/reports", label: "Reports" },
+  { href: "/sales", label: "Sales" },
+  { href: "/counts", label: "Kitchen counts" },
   { href: "/stock", label: "Stock" },
   { href: "/recipes", label: "Recipes" },
   { href: "/packages", label: "Packages" },

@@ -9,7 +9,7 @@ interface Batch {
 }
 
 /** Past imports of one kind, each with an undo that writes reversing ledger entries. */
-export function BatchList({ kind, refreshKey, onChange }: { kind: "purchases" | "issues" | "opening"; refreshKey: number; onChange: () => void }) {
+export function BatchList({ kind, refreshKey, onChange }: { kind: "purchases" | "issues" | "opening" | "sales" | "counts"; refreshKey: number; onChange: () => void }) {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [error, setError] = useState("");
 

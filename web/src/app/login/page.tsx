@@ -19,7 +19,7 @@ export default function Login() {
       : await supabase.auth.signUp({ email, password });
     setBusy(false);
     if (res.error) return setMessage(res.error.message);
-    if (res.data.session) return router.replace("/stock");
+    if (res.data.session) return router.replace("/dashboard");
     setMessage("Account created. Check your email to confirm it, then sign in.");
   }
 

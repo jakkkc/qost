@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchAll } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
+interface LinkRow { id: string; pos_item_id: string; is_primary: boolean; recipes: { name: string } | null; packages: { name: string } | null }
 interface Pos {
   pos_item_id: string; pos_code: number; pos_name: string; pos_group: string | null; pos_price: number | null;
   linked: string; menu_price: number | null; has_recipe: boolean; flag: string;
@@ -18,11 +19,35 @@ export default function PosCheckPage() {
   const [noRecipe, setNoRecipe] = useState(false);
   const [search, setSearch] = useState("");
   const [err, setErr] = useState("");
+  const [links, setLinks] = useState<Record<string, LinkRow[]>>({});
+  const [prices, setPrices] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    fetchAll<Pos>((a, b) => supabase.from("pos_item_status").select("*").order("pos_group").order("pos_name").range(a, b))
-      .then(setRows).catch((e) => setErr(e.message));
+  const load = useCallback(async () => {
+    try {
+      setRows(await fetchAll<Pos>((a, b) => supabase.from("pos_item_status").select("*").order("pos_group").order("pos_name").range(a, b)));
+      const ls = await fetchAll<LinkRow>((a, b) => supabase.from("pos_item_links").select("id,pos_item_id,is_primary,recipes(name),packages(name)").range(a, b) as never);
+      const m: Record<string, LinkRow[]> = {};
+      ls.forEach((l) => { (m[l.pos_item_id] ??= []).push(l); });
+      setLinks(m);
+    } catch (e) { setErr((e as Error).message); }
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load on mount
+  useEffect(() => { load(); }, [load]);
+
+  async function savePrice(r: Pos) {
+    const v = parseFloat(prices[r.pos_item_id]);
+    if (!(v >= 0)) return setErr("Price must be 0 or more.");
+    const { error } = await supabase.from("pos_items").update({ pos_price: v }).eq("id", r.pos_item_id);
+    if (error) return setErr(error.message);
+    setPrices((p) => { const n = { ...p }; delete n[r.pos_item_id]; return n; });
+    load();
+  }
+
+  async function setPrimary(linkId: string) {
+    const { error } = await supabase.rpc("set_primary_link", { p_link: linkId });
+    if (error) return setErr(error.message);
+    load();
+  }
 
   const shown = rows.filter((r) => (!flag || r.flag === flag) && (!noRecipe || !r.has_recipe)
     && (!search.trim() || `${r.pos_name} ${r.linked}`.toLowerCase().includes(search.trim().toLowerCase())));
@@ -50,8 +75,20 @@ export default function PosCheckPage() {
           <tbody>
             {shown.slice(0, 500).map((r) => (
               <tr key={r.pos_item_id} className="border-t border-black/10 dark:border-white/10">
-                <td className="py-1">{r.pos_code}</td><td>{r.pos_name}</td><td>{r.pos_group}</td><td>{money(r.pos_price)}</td><td>{money(r.menu_price)}</td>
-                <td>{r.linked}{!r.has_recipe && r.linked && <span className="ml-1 text-xs text-red-600">no recipe</span>}</td>
+                <td className="py-1">{r.pos_code}</td><td>{r.pos_name}</td><td>{r.pos_group}</td><td>
+                  <span className="flex items-center gap-1">
+                    <input value={prices[r.pos_item_id] ?? (r.pos_price?.toString() ?? "")} onChange={(e) => setPrices({ ...prices, [r.pos_item_id]: e.target.value })} inputMode="decimal" className="w-20 rounded border border-black/20 bg-transparent px-1 py-0.5 dark:border-white/20" />
+                    {prices[r.pos_item_id] !== undefined && <button onClick={() => savePrice(r)} className="rounded bg-orange-500 px-2 py-0.5 text-white">Save</button>}
+                  </span>
+                </td><td>{money(r.menu_price)}</td>
+                <td>
+                  {(links[r.pos_item_id]?.length ?? 0) > 1 ? (
+                    <select value={links[r.pos_item_id].find((l) => l.is_primary)?.id ?? ""} onChange={(e) => setPrimary(e.target.value)} title="Sales of this POS item count against the primary dish" className="rounded border border-black/20 bg-transparent px-1 py-0.5 dark:border-white/20">
+                      {links[r.pos_item_id].map((l) => <option key={l.id} value={l.id}>{l.recipes?.name ?? l.packages?.name}</option>)}
+                    </select>
+                  ) : r.linked}
+                  {!r.has_recipe && r.linked && <span className="ml-1 text-xs text-red-600">no recipe</span>}
+                </td>
                 <td className={r.flag === "OK" ? "" : "font-medium text-red-600"}>{r.flag}</td>
               </tr>
             ))}
